@@ -1,4 +1,4 @@
-# soup_game.py
+# ✅ soup_game.py — c поддержкой сохранения
 
 import json
 import random
@@ -154,3 +154,37 @@ class SoupGame:
             "events_log": list(self.events_log[-5:]),
             "current_choice": self.current_choice
         }
+
+    # ✅ Методы сохранения состояния
+    def to_dict(self):
+        return {
+            "turn": self.turn,
+            "hp": self.hp,
+            "status": self.status,
+            "resources": self.resources,
+            "tech": self.tech,
+            "structures": self.structures,
+            "factions": self.factions,
+            "events_log": self.events_log,
+            "resolved_choices": list(self.resolved_choices),
+            "current_choice_id": self.current_choice["id"] if self.current_choice else None
+        }
+
+    def load_state(self, data):
+        self.turn = data["turn"]
+        self.hp = data["hp"]
+        self.status = data["status"]
+        self.resources = data["resources"]
+        self.tech = data["tech"]
+        self.structures = data["structures"]
+        self.factions = data["factions"]
+        self.events_log = data["events_log"]
+        self.resolved_choices = set(data.get("resolved_choices", []))
+
+        if data.get("current_choice_id"):
+            self.current_choice = next(
+                (c for c in self.choices if c["id"] == data["current_choice_id"]),
+                None
+            )
+        else:
+            self.current_choice = None

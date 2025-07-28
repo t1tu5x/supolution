@@ -28,5 +28,35 @@
     "name": "Супознание",
     "desc": "Последняя ступень осознания себя как супа. Позволяет победить.",
     "win": true
+  },
+  {
+    "name": "Sentient Core",
+    "desc": "+20% ко всем ресурсам",
+    "cost": [
+      { "type": "нутриенты", "amount": 200 },
+      { "type": "faction", "target": "овощи", "amount": -10 }
+    ]
+  },
+  {
+    "name": "Spicy Aura",
+    "desc": "+15% к приросту жара",
+    "cost": [
+      { "type": "жар", "amount": 100 }
+    ]
+  },
+  {
+    "name": "Green Harmony",
+    "desc": "+10% лояльности овощей",
+    "cost": [
+      { "type": "вода", "amount": 80 },
+      { "type": "faction", "target": "мясо", "amount": -5 }
+    ]
+  },
+  {
+    "name": "Pantry Cache",
+    "desc": "+15% к хранению нутриентов",
+    "cost": [
+      { "type": "нутриенты", "amount": 150 }
+    ]
   }
 ]

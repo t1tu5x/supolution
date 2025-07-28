@@ -1,4 +1,4 @@
-# ✅ main.py — с визуалом, звуком, темами, сохранением и поддержкой DLC
+# ✅ main.py — с визуальным деревом технологий и стратегическим выбором
 
 import streamlit as st
 from soup_game import SoupGame
@@ -55,7 +55,7 @@ def play_sound(url):
         </audio>
     """, unsafe_allow_html=True)
 
-# 🧠 Стейт и загрузка
+# Инициализация и загрузка состояния
 if "game_data" in st.session_state:
     game = SoupGame()
     game.load_state(st.session_state["game_data"])
@@ -64,7 +64,7 @@ else:
 
 state = game.get_state()
 
-# 🎨 Выбор темы
+# Выбор темы оформления
 if "theme" not in st.session_state:
     st.session_state.theme = "Классика"
 
@@ -73,10 +73,9 @@ selected_theme = st.selectbox("🎨 Тема супа:", available_themes, index
 st.session_state.theme = selected_theme
 
 apply_custom_style()
-
 st.session_state.game_data = game.to_dict()
 
-# 🧠 Заголовок и интро
+# Заголовок и вводная часть
 st.title("🥣 СУПОЛЮЦИЯ")
 st.markdown("**Ты — суп. Разумный. Не дай себя вылить.**")
 
@@ -89,7 +88,7 @@ if state["turn"] == 0 and not state["tech"]:
         </div>
     """, unsafe_allow_html=True)
 
-# 🧾 Статистика и ресурсы
+# Основная статистика
 col1, col2 = st.columns(2)
 with col1:
     st.markdown(f"🌀 **Ход:** `{state['turn']}` / `{game.max_turns}`")
@@ -99,7 +98,7 @@ with col2:
     for k, v in state["resources"].items():
         st.markdown(f"- {k}: `{v}`")
 
-# 🎉 Победа / 💀 Поражение
+# Победа или поражение
 if state["status"] == "ascended":
     play_sound("https://cdn.pixabay.com/audio/2022/10/31/audio_8c8d2f5f20.mp3")
     st.balloons()
@@ -113,19 +112,18 @@ if state["status"] == "flushed":
     st.button("Попробовать снова", on_click=lambda: st.session_state.clear())
     st.stop()
 
-# 📜 Хроники событий
+# События и фракции
 st.divider()
 st.markdown("### 📜 Супные хроники:")
 for e in reversed(state["events_log"]):
     st.markdown(f"- {e}")
 
-# 🏛️ Фракции
 st.markdown("### 🏛️ Фракции:")
 for name, value in state["factions"].items():
     bar = "🟩" * max(0, value) + "🟥" * max(0, -value)
     st.markdown(f"**{name}**: `{value}` {bar}")
 
-# 🎭 Сюжетные выборы
+# Сюжетные выборы
 if state.get("current_choice"):
     choice = state["current_choice"]
     st.markdown("### ⚖️ Судьбоносный выбор!")
@@ -140,9 +138,11 @@ if state.get("current_choice"):
         st.session_state.game_data = game.to_dict()
         st.rerun()
 
-# 🔬 Апгрейды (технологии)
-st.markdown("### 🔬 Новые технологии:")
+# Технологии с отображением зависимостей
+st.markdown("### 🧪 Научные технологии:")
 choices = game.get_upgrade_choices()
+tech_tree = game.tech_tree
+
 if not choices:
     st.warning("Все технологии изучены. Просто нажми 'Следующий ход'.")
     if st.button("Следующий ход"):
@@ -151,18 +151,20 @@ if not choices:
         st.rerun()
     st.stop()
 
-selected_name = st.radio("Выбери технологию:", [c["name"] for c in choices])
-selected_upgrade = next(u for u in choices if u["name"] == selected_name)
-st.markdown(f"🔍 **Описание:** {selected_upgrade['desc']}")
+for choice in choices:
+    deps = tech_tree.get(choice["name"], [])
+    with st.expander(f"📘 {choice['name']}"):
+        st.markdown(f"**Описание:** {choice['desc']}")
+        if deps:
+            st.markdown(f"🔗 Требуется: {', '.join(deps)}")
+        if st.button(f"📈 Изучить — {choice['name']}"):
+            play_sound("https://cdn.pixabay.com/audio/2022/03/15/audio_3fd16212d1.mp3")
+            game.apply_upgrade(choice["name"])
+            game.next_turn()
+            st.session_state.game_data = game.to_dict()
+            st.rerun()
 
-if st.button("📈 Применить и перейти к следующему ходу"):
-    play_sound("https://cdn.pixabay.com/audio/2022/03/15/audio_3fd16212d1.mp3")
-    game.apply_upgrade(selected_name)
-    game.next_turn()
-    st.session_state.game_data = game.to_dict()
-    st.rerun()
-
-# 📊 Доп. информация
+# Информация о структуре
 st.divider()
 with st.expander("📊 Статистика цивилизации"):
     st.markdown("**🧱 Постройки:**")

@@ -1,0 +1,18 @@
+[
+  {
+    "combo": ["Spicy Aura", "Heat Resistance"],
+    "effect": {
+      "name": "🔥 Печка Гнева",
+      "bonus": { "жар": 0.15 },
+      "factions": { "специи": 10 }
+    }
+  },
+  {
+    "combo": ["Green Harmony", "Pantry Cache"],
+    "effect": {
+      "name": "🌿 Экозапас",
+      "bonus": { "нутриенты": 0.1 },
+      "factions": { "овощи": 5 }
+    }
+  }
+]

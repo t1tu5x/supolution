@@ -1,11 +1,12 @@
-# ✅ soup_game.py — c поддержкой сохранения
+
+# ✅ soup_game.py — с поддержкой DLC-фракций, тем и сохранения
 
 import json
 import random
 from datetime import datetime
 
 class SoupGame:
-    def __init__(self):
+    def __init__(self, dlc_enabled=True):
         self.turn = 0
         self.hp = 100
         self.max_turns = 40
@@ -15,6 +16,9 @@ class SoupGame:
         self.tech = []
         self.structures = []
         self.events_log = []
+        self.upgrades = self.load_json("data/upgrades.json")
+        self.events = self.load_json("data/events.json")
+        self.choices = self.load_json("data/choices.json")
 
         self.factions = {
             "Грибной Ковен": 0,
@@ -23,12 +27,14 @@ class SoupGame:
             "Слизистая Демократия": 0
         }
 
-        self.upgrades = self.load_json("data/upgrades.json")
-        self.events = self.load_json("data/events.json")
-        self.choices = self.load_json("data/choices.json")
-
         self.current_choice = None
         self.resolved_choices = set()
+        self.unlocked_themes = ["Классика"]
+
+        # DLC
+        if dlc_enabled:
+            for dlc in self.load_json("data/factions_dlc.json"):
+                self.factions[dlc["name"]] = dlc.get("starting_reputation", 0)
 
     def load_json(self, path):
         try:
@@ -89,6 +95,9 @@ class SoupGame:
 
         if найден.get("win"):
             self.status = "ascended"
+
+        if upgrade_name == "Супознание" and "Томатный апокалипсис" not in self.unlocked_themes:
+            self.unlocked_themes.append("Томатный апокалипсис")
 
         return True
 
@@ -152,10 +161,10 @@ class SoupGame:
             "factions": dict(self.factions),
             "structures": list(self.structures),
             "events_log": list(self.events_log[-5:]),
-            "current_choice": self.current_choice
+            "current_choice": self.current_choice,
+            "unlocked_themes": list(self.unlocked_themes)
         }
 
-    # ✅ Методы сохранения состояния
     def to_dict(self):
         return {
             "turn": self.turn,
@@ -167,7 +176,8 @@ class SoupGame:
             "factions": self.factions,
             "events_log": self.events_log,
             "resolved_choices": list(self.resolved_choices),
-            "current_choice_id": self.current_choice["id"] if self.current_choice else None
+            "current_choice_id": self.current_choice["id"] if self.current_choice else None,
+            "unlocked_themes": list(self.unlocked_themes)
         }
 
     def load_state(self, data):
@@ -180,6 +190,7 @@ class SoupGame:
         self.factions = data["factions"]
         self.events_log = data["events_log"]
         self.resolved_choices = set(data.get("resolved_choices", []))
+        self.unlocked_themes = list(data.get("unlocked_themes", ["Классика"]))
 
         if data.get("current_choice_id"):
             self.current_choice = next(

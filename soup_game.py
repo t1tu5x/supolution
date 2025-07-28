@@ -11,13 +11,11 @@ class SoupGame:
         self.max_turns = 40
         self.status = "alive"
 
-        # Основные показатели
         self.resources = {"белки": 5, "жиры": 5, "углеводы": 5}
         self.tech = []
-        self.events_log = []
         self.structures = []
+        self.events_log = []
 
-        # Фракции и репутация
         self.factions = {
             "Грибной Ковен": 0,
             "Картофельный Фронт": 0,
@@ -25,9 +23,12 @@ class SoupGame:
             "Слизистая Демократия": 0
         }
 
-        # Загрузка апгрейдов и событий
         self.upgrades = self.load_json("data/upgrades.json")
         self.events = self.load_json("data/events.json")
+        self.choices = self.load_json("data/choices.json")
+
+        self.current_choice = None
+        self.resolved_choices = set()
 
     def load_json(self, path):
         try:
@@ -43,22 +44,18 @@ class SoupGame:
         self.turn += 1
         self.hp -= random.randint(1, 4)
 
-        # Прирост ресурсов (связан с постройками и технологиями)
         for key in self.resources:
-            base = random.randint(0, 2)
+            прирост = random.randint(0, 2)
             if "Ферментатор" in self.structures:
-                base += 1
-            self.resources[key] = max(0, self.resources[key] + base)
+                прирост += 1
+            self.resources[key] = max(0, self.resources[key] + прирост)
 
-        # Рандом-событие
         if random.random() < 0.4:
             self.trigger_random_event()
 
-        # Проверка условий проигрыша
         if self.turn >= self.max_turns or self.hp <= 0:
             self.status = "flushed"
 
-        # Условие победы: 3 фракции уважают тебя + 1 мегапроект
         if (
             all(v >= 5 for v in self.factions.values()) and
             "Супознание" in self.tech and
@@ -66,26 +63,7 @@ class SoupGame:
         ):
             self.status = "ascended"
 
-    def trigger_random_event(self):
-        if not self.events:
-            return
-        event = random.choice(self.events)
-        self.events_log.append(event["text"])
-
-        effect = event.get("effect", {})
-        for key, val in effect.get("resources", {}).items():
-            if key in self.resources:
-                self.resources[key] = max(0, self.resources[key] + val)
-
-        for faction, shift in effect.get("factions", {}).items():
-            if faction in self.factions:
-                self.factions[faction] += shift
-
-        if effect.get("hp"):
-            self.hp = max(0, self.hp + effect["hp"])
-
-        if "death" in effect and effect["death"] is True:
-            self.status = "flushed"
+        self.maybe_trigger_choice()
 
     def get_upgrade_choices(self):
         доступные = [u for u in self.upgrades if u["name"] not in self.tech]
@@ -114,6 +92,56 @@ class SoupGame:
 
         return True
 
+    def trigger_random_event(self):
+        if not self.events:
+            return
+        event = random.choice(self.events)
+        self.events_log.append(event["text"])
+
+        effect = event.get("effect", {})
+        for key, val in effect.get("resources", {}).items():
+            if key in self.resources:
+                self.resources[key] = max(0, self.resources[key] + val)
+
+        for faction, shift in effect.get("factions", {}).items():
+            if faction in self.factions:
+                self.factions[faction] += shift
+
+        if "hp" in effect:
+            self.hp = max(0, self.hp + effect["hp"])
+
+        if effect.get("death") is True:
+            self.status = "flushed"
+
+    def maybe_trigger_choice(self):
+        if self.turn % 5 == 0 and self.current_choice is None:
+            available = [c for c in self.choices if c["id"] not in self.resolved_choices]
+            if available:
+                self.current_choice = random.choice(available)
+
+    def resolve_choice(self, answer: str):
+        if not self.current_choice:
+            return
+
+        effects = self.current_choice.get(answer, {})
+
+        for k, v in effects.get("resources", {}).items():
+            if k in self.resources:
+                self.resources[k] += v
+
+        for f, delta in effects.get("factions", {}).items():
+            if f in self.factions:
+                self.factions[f] += delta
+
+        if "hp" in effects:
+            self.hp += effects["hp"]
+
+        self.resolved_choices.add(self.current_choice["id"])
+        self.current_choice = None
+
+        if self.hp <= 0:
+            self.status = "flushed"
+
     def get_state(self):
         return {
             "turn": self.turn,
@@ -123,5 +151,6 @@ class SoupGame:
             "status": self.status,
             "factions": dict(self.factions),
             "structures": list(self.structures),
-            "events_log": list(self.events_log[-5:])
+            "events_log": list(self.events_log[-5:]),
+            "current_choice": self.current_choice
         }

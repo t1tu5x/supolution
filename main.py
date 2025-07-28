@@ -1,3 +1,5 @@
+# main.py с квестами и прогрессбаром
+
 import streamlit as st
 from soup_game import SoupGame
 
@@ -15,15 +17,7 @@ st.session_state.game_data = game.to_dict()
 st.title("🥣 Суполюция")
 st.markdown("Разумный суп. Микроцивилизация. Научный бой за выживание.")
 
-# 💬 Объяснение ресурсов
-st.markdown("""
-**📚 Ресурсы:**
-- 🧬 **Белки** — рост, восстановление
-- 🧈 **Жиры** — броня, стабильность температуры
-- 🍞 **Углеводы** — энергия. Каждый ход тратятся
-- 🪨 **Минералы** — дипломатия, апгрейды, технологии
-""")
-
+# 💬 Ресурсы
 col1, col2 = st.columns(2)
 with col1:
     st.markdown(f"🧪 **Ход:** `{state['turn']}` / `{game.max_turns}`")
@@ -32,20 +26,17 @@ with col2:
     for k, v in state["resources"].items():
         st.markdown(f"- {k.capitalize()}: `{v}`")
 
-# 📣 Кризис
-if state.get("active_crisis"):
-    st.warning(f"⚠️ Кризис: {state['active_crisis']} требует 3 минерала.")
-    colc1, colc2 = st.columns(2)
-    if colc1.button("🤝 Подчиниться"):
-        game.resolve_crisis(True)
-        st.session_state.game_data = game.to_dict()
-        st.rerun()
-    if colc2.button("🚫 Отказаться"):
-        game.resolve_crisis(False)
-        st.session_state.game_data = game.to_dict()
-        st.rerun()
+# 🔥 Квесты
+st.markdown("### 📖 Квесты:")
+if state["quest_progress"]:
+    for qid, stage in state["quest_progress"].items():
+        st.markdown(f"- 📘 `{qid}` — этап {stage}")
+        pct = min(100, (stage / 3) * 100)
+        st.progress(pct, text=f"{int(pct)}% завершено")
+else:
+    st.markdown("Нет активных квестов")
 
-# 🔬 Технологии
+# 🧪 Технологии
 st.markdown("### 🔬 Исследования:")
 choices = game.get_upgrade_choices()
 if not choices:
@@ -69,26 +60,7 @@ else:
                 st.session_state.game_data = game.to_dict()
                 st.rerun()
 
-# 🏛️ Фракции
-st.markdown("### 🏛️ Фракции:")
-for name, rep in state["factions"].items():
-    if rep >= 6:
-        status = "👑 альянс"
-    elif rep >= 4:
-        status = "🟢 союз"
-    elif rep <= -4:
-        status = "🔴 враг"
-    else:
-        status = "⚪ нейтрал"
-    st.markdown(f"{status} **{name}** — `{rep}`")
-
-# 📜 События
-st.markdown("### 📜 Хроника:")
-for log in reversed(state["events_log"]):
-    icon = "🔬" if "техн" in log.lower() else "⚔️" if "атак" in log.lower() else "🎁" if "помощ" in log.lower() else "📍"
-    st.markdown(f"- {icon} {log}")
-
-# ⚖️ Выбор
+# ⚖️ Выборы
 if state.get("current_choice"):
     ch = state["current_choice"]
     st.markdown(f"### ❓ {ch['text']}")
@@ -106,6 +78,18 @@ if state.get("current_choice"):
         st.session_state.game_data = game.to_dict()
         st.rerun()
 
+# 🏛️ Фракции
+st.markdown("### 🏛️ Фракции:")
+for name, rep in state["factions"].items():
+    status = "👑 альянс" if rep >= 6 else "🟢 союз" if rep >= 4 else "🔴 враг" if rep <= -4 else "⚪ нейтрал"
+    st.markdown(f"{status} **{name}** — `{rep}`")
+
+# 📜 События
+st.markdown("### 📜 Хроника:")
+for log in reversed(state["events_log"]):
+    icon = "🔬" if "техн" in log.lower() else "⚔️" if "атак" in log.lower() else "🎁" if "помощ" in log.lower() else "📍"
+    st.markdown(f"- {icon} {log}")
+
 # 🏗️ Постройки
 with st.expander("🏗️ Постройки"):
     for s in state["structures"]:
@@ -113,7 +97,7 @@ with st.expander("🏗️ Постройки"):
     if not state["structures"]:
         st.markdown("_Ничего не построено._")
 
-# 📘 Технологии
+# 📘 Изученные технологии
 with st.expander("📘 Изученные технологии"):
     for t in state["tech"]:
         st.markdown(f"- {t}")

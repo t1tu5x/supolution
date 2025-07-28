@@ -1,0 +1,34 @@
+[
+  {
+    "id": "build_shrine",
+    "name": "Храм Ложки",
+    "stages": [
+      {
+        "require": { "resources": { "белки": 10, "жиры": 10 } },
+        "reward": { "resources": { "углеводы": 5 } }
+      },
+      {
+        "require": { "resources": { "углеводы": 15 } },
+        "reward": { "resources": { "белки": 5 } }
+      },
+      {
+        "require": { "resources": { "белки": 20 } },
+        "reward": { "resources": { "жиры": 10 } }
+      }
+    ]
+  },
+  {
+    "id": "contact_peas",
+    "name": "Контакт с Горошковой Армией",
+    "stages": [
+      {
+        "require": { "resources": { "углеводы": 12 } },
+        "reward": { "resources": { "жиры": 2 } }
+      },
+      {
+        "require": { "resources": { "жиры": 10 } },
+        "reward": { "resources": { "белки": 3 } }
+      }
+    ]
+  }
+]

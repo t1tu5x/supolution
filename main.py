@@ -1,3 +1,5 @@
+# ✅ main.py — с визуалом, звуком, темами, сохранением и поддержкой DLC
+
 import streamlit as st
 from soup_game import SoupGame
 

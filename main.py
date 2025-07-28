@@ -1,4 +1,4 @@
-# ✅ main.py — визуальные связи с логикой ресурсов и фракций
+# ✅ main.py — адаптирован под переработанное ядро с физикой, фракциями и ресурсами
 
 import streamlit as st
 from soup_game import SoupGame
@@ -16,38 +16,33 @@ st.session_state.game_data = game.to_dict()
 
 # 🧠 Заголовок
 st.title("🥣 Суполюция")
-st.markdown("Развивай свой суп — строй, дружи и не выливайся!")
+st.markdown("Разумный суп. Реальная стратегия. Не дай себе выкипеть.")
 
-# 💬 Объяснение ресурсов
+# 💬 Объяснение ресурсов (по физике и биологии)
 st.markdown("""
-**🧪 Ресурсы:**
-- 🍞 *Углеводы* — энергия. Если их мало, теряешь здоровье каждый ход.
-- 🧈 *Жиры* — броня. Без них шанс сгореть!
-- 🧬 *Белки* — восстановление и строительство. Полезны во всём.
+**📚 Ресурсы:**
+- 🧬 **Белки** — строят ткани и восстанавливают HP
+- 🧈 **Жиры** — защита и тепло. Без них перегрев/замерзание
+- 🍞 **Углеводы** — энергия. Если не хватает — HP уходит
+- 🪨 **Минералы** — катализаторы. Нужны для технологий и дипломатии
 """)
 
-# 📦 Ресурсы и ХП
+# 📦 Статистика
 col1, col2 = st.columns(2)
 with col1:
     st.markdown(f"🧪 **Ход:** `{state['turn']}` / `{game.max_turns}`")
-    st.markdown(f"❤️ **Жизнь супа:** `{state['hp']}`")
+    st.markdown(f"❤️ **Здоровье:** `{state['hp']}`")
 with col2:
-    for k, v in state["resources"].items():
-        st.markdown(f"- {k.capitalize()}: `{v}`")
+    for res, val in state["resources"].items():
+        st.markdown(f"- {res.capitalize()}: `{val}`")
 
-# 🔥 Фракции
-st.markdown("### 🏛️ Фракции")
-for name, value in state["factions"].items():
-    icon = "🟢" if value >= 4 else "⚪" if value >= 0 else "🔴"
-    st.markdown(f"{icon} **{name}**: `{value}`")
-
-# 📘 Технологии
-st.markdown("### 🔬 Доступные технологии")
+# 🔬 Технологии (с зависимостями)
+st.markdown("### 🧪 Исследования:")
 choices = game.get_upgrade_choices()
 tech_tree = game.tech_tree
 
 if not choices:
-    st.warning("Все технологии изучены. Жми 'Следующий ход'.")
+    st.info("Все технологии изучены. Жми ➡ Следующий ход.")
     if st.button("➡ Следующий ход"):
         game.next_turn()
         st.session_state.game_data = game.to_dict()
@@ -55,45 +50,50 @@ if not choices:
 else:
     for tech in choices:
         deps = tech_tree.get(tech["name"], [])
-        with st.expander(f"🧪 {tech['name']}"):
-            st.markdown(tech["desc"])
+        with st.expander(f"🔹 {tech['name']}"):
+            st.markdown(f"{tech['desc']}")
             if deps:
-                st.markdown(f"🔗 Нужно сначала: {', '.join(deps)}")
-            if st.button(f"🚀 Изучить — {tech['name']}"):
-                game.apply_upgrade(tech["name"])
+                st.markdown(f"🔗 Требует: {', '.join(deps)}")
+            if st.button(f"🔬 Изучить: {tech['name']}"):
+                game.apply_upgrade(tech['name'])
                 game.next_turn()
                 st.session_state.game_data = game.to_dict()
                 st.rerun()
 
-# 📜 История и выборы
-st.markdown("### 📖 Хроника")
-for e in reversed(state["events_log"]):
-    st.markdown(f"- {e}")
+# 🏛️ Фракции
+st.markdown("### 🏛️ Фракции:")
+for name, rep in state["factions"].items():
+    status = "🟢 союз" if rep >= 4 else "🔴 враг" if rep <= -3 else "⚪ нейтрал"
+    st.markdown(f"{status} **{name}** — `{rep}`")
 
+# 🧾 События и логи
+st.markdown("### 📜 Хроника:")
+for log in reversed(state["events_log"]):
+    st.markdown(f"- {log}")
+
+# ⚖️ Выборы игрока
 if state.get("current_choice"):
-    c = state["current_choice"]
-    st.markdown(f"### ❓ {c['text']}")
+    ch = state["current_choice"]
+    st.markdown(f"### ❓ {ch['text']}")
     col_a, col_b = st.columns(2)
-    if col_a.button("✅ Да"):
+    if col_a.button("✅ Согласен"):
         game.resolve_choice("yes")
         st.session_state.game_data = game.to_dict()
         st.rerun()
-    if col_b.button("❌ Нет"):
+    if col_b.button("❌ Отказаться"):
         game.resolve_choice("no")
         st.session_state.game_data = game.to_dict()
         st.rerun()
 
-# 📦 Структуры и достижения
-with st.expander("📦 Что построено"):
-    if state["structures"]:
-        for s in state["structures"]:
-            st.markdown(f"- 🏗️ {s}")
-    else:
-        st.markdown("_Ничего пока не построено._")
+# 🏗️ Прогресс
+with st.expander("📦 Постройки"):
+    for s in state["structures"]:
+        st.markdown(f"- 🧱 {s}")
+    if not state["structures"]:
+        st.markdown("_Ничего не построено._")
 
-with st.expander("📚 Технологии изучены"):
-    if state["tech"]:
-        for t in state["tech"]:
-            st.markdown(f"- {t}")
-    else:
-        st.markdown("_Пока ни одной._")
+with st.expander("📘 Изученные технологии"):
+    for t in state["tech"]:
+        st.markdown(f"- {t}")
+    if not state["tech"]:
+        st.markdown("_Нет исследований._")

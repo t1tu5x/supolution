@@ -1,8 +1,7 @@
- ✅ soup_game.py — с поддержкой DLC-фракций, тем, сохранения и квестов
+# ✅ soup_game.py — для детей: с мультяшными фракциями, квестами и наукой-сказкой
 
 import json
 import random
-from datetime import datetime
 
 class SoupGame:
     def __init__(self, dlc_enabled=True):
@@ -15,17 +14,19 @@ class SoupGame:
         self.tech = []
         self.structures = []
         self.events_log = []
+
         self.upgrades = self.load_json("data/upgrades.json")
+        self.tech_tree = self.load_json("data/tech_tree.json")
         self.events = self.load_json("data/events.json")
         self.choices = self.load_json("data/choices.json")
         self.quests = self.load_json("data/quests.json")
         self.quest_progress = {}
 
         self.factions = {
-            "Грибной Ковен": 0,
-            "Картофельный Фронт": 0,
-            "Орден Бульона": 0,
-            "Слизистая Демократия": 0
+            "Сливочные Пельмешки": 0,
+            "Горошковое Веселье": 0,
+            "Орден Хрустящих Сухариков": 0,
+            "Мармеладные Мыслители": 0
         }
 
         self.current_choice = None
@@ -48,7 +49,7 @@ class SoupGame:
             return
 
         self.turn += 1
-        self.hp -= random.randint(1, 4)
+        self.hp -= random.randint(1, 3)
 
         for key in self.resources:
             прирост = random.randint(0, 2)
@@ -56,7 +57,7 @@ class SoupGame:
                 прирост += 1
             self.resources[key] = max(0, self.resources[key] + прирост)
 
-        if random.random() < 0.4:
+        if random.random() < 0.5:
             self.trigger_random_event()
 
         self.update_quests()
@@ -74,8 +75,12 @@ class SoupGame:
         self.maybe_trigger_choice()
 
     def get_upgrade_choices(self):
-        доступные = [u for u in self.upgrades if u["name"] not in self.tech]
+        доступные = [u for u in self.upgrades if u["name"] not in self.tech and self.tech_requirements_met(u["name"])]
         return random.sample(доступные, min(3, len(доступные)))
+
+    def tech_requirements_met(self, upgrade_name):
+        required = self.tech_tree.get(upgrade_name, [])
+        return all(t in self.tech for t in required)
 
     def apply_upgrade(self, upgrade_name):
         найден = next((u for u in self.upgrades if u["name"] == upgrade_name), None)
@@ -125,7 +130,7 @@ class SoupGame:
             self.status = "flushed"
 
     def maybe_trigger_choice(self):
-        if self.turn % 5 == 0 and self.current_choice is None:
+        if self.turn % 4 == 0 and self.current_choice is None:
             available = [c for c in self.choices if c["id"] not in self.resolved_choices]
             if available:
                 self.current_choice = random.choice(available)
@@ -161,7 +166,7 @@ class SoupGame:
                 req = q["stages"][stage]["require"]
                 if all(self.resources.get(k, 0) >= v for k, v in req.get("resources", {}).items()):
                     self.quest_progress[qid] = stage + 1
-                    self.events_log.append(f"🧭 Квест продвинулся: {q['name']} — этап {stage+1}")
+                    self.events_log.append(f"🌟 Ура! Квест {q['name']} — этап {stage+1} пройден!")
                     for key, val in q["stages"][stage].get("reward", {}).get("resources", {}).items():
                         self.resources[key] += val
 

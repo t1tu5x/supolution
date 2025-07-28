@@ -3,6 +3,13 @@
 import streamlit as st
 from soup_game import SoupGame
 
+def play_sound(url):
+    st.markdown(f"""
+        <audio autoplay>
+            <source src="{url}" type="audio/mp3">
+        </audio>
+    """, unsafe_allow_html=True)
+
 # ⬛ Настройки страницы
 st.set_page_config(page_title="СУПОЛЮЦИЯ", page_icon="🥣", layout="centered")
 

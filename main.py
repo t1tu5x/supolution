@@ -1,24 +1,46 @@
 import streamlit as st
 from soup_game import SoupGame
 
+THEMES = {
+    "Классика": {
+        "background": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOGM4NmMyMmJjZjM3N2VkZGVkYmMyYmQ0YWI4ZjM2YjFkZGM4Y2QzZiZjdD1n/ZybDTC3S3kAUE/giphy.gif",
+        "tone": "#fffbe6"
+    },
+    "Томатный апокалипсис": {
+        "background": "https://media.giphy.com/media/fAnEC88LccN7a/giphy.gif",
+        "tone": "#ffe6e6"
+    },
+    "Грибной лес": {
+        "background": "https://media.giphy.com/media/l0HlGdELQG9UE6NfK/giphy.gif",
+        "tone": "#f0fff0"
+    },
+    "Тёмный борщ": {
+        "background": "https://media.giphy.com/media/3ohfFq2FFpE4BSPJ4s/giphy.gif",
+        "tone": "#1a001a"
+    }
+}
+
 st.set_page_config(page_title="СУПОЛЮЦИЯ", page_icon="🥣", layout="centered")
 
-# 🎨 Кастомный фон
+# 🎨 Кастомный фон и цвет
 
 def apply_custom_style():
-    st.markdown("""
+    theme = THEMES.get(st.session_state.get("theme", "Классика"), THEMES["Классика"])
+    background = theme["background"]
+    tone = theme["tone"]
+    st.markdown(f"""
         <style>
-        body {
-            background-image: url('https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOGM4NmMyMmJjZjM3N2VkZGVkYmMyYmQ0YWI4ZjM2YjFkZGM4Y2QzZiZjdD1n/ZybDTC3S3kAUE/giphy.gif');
+        body {{
+            background-image: url('{background}');
             background-size: cover;
             background-repeat: no-repeat;
             background-position: center;
-        }
-        .stApp {
-            background-color: rgba(255, 255, 255, 0.88);
+        }}
+        .stApp {{
+            background-color: {tone};
             padding: 2rem;
             border-radius: 25px;
-        }
+        }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -31,9 +53,7 @@ def play_sound(url):
         </audio>
     """, unsafe_allow_html=True)
 
-apply_custom_style()
-
-# 🔁 Сохранение между сессиями
+# 🧠 Стейт и загрузка
 if "game_data" in st.session_state:
     game = SoupGame()
     game.load_state(st.session_state["game_data"])
@@ -41,6 +61,16 @@ else:
     game = SoupGame()
 
 state = game.get_state()
+
+# 🎨 Выбор темы
+if "theme" not in st.session_state:
+    st.session_state.theme = "Классика"
+
+available_themes = [t for t in THEMES if t in state.get("unlocked_themes", ["Классика"])]
+selected_theme = st.selectbox("🎨 Тема супа:", available_themes, index=available_themes.index(st.session_state.theme))
+st.session_state.theme = selected_theme
+
+apply_custom_style()
 
 st.session_state.game_data = game.to_dict()
 

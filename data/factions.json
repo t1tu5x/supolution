@@ -1,0 +1,47 @@
+[
+  {
+    "id": "Сливочные Пельмешки",
+    "color": "#FFD54F",
+    "start_loyalty": 0,
+    "effects": [
+      {
+        "threshold": 30,
+        "unlock": "Пельмень Вдохновения"
+      },
+      {
+        "threshold": -30,
+        "penalty": { "жиры": -20 }
+      }
+    ]
+  },
+  {
+    "id": "Горошковое Веселье",
+    "color": "#81C784",
+    "start_loyalty": 0,
+    "effects": [
+      {
+        "threshold": 30,
+        "unlock": "Гармония Волокон"
+      },
+      {
+        "threshold": -30,
+        "penalty": { "белки": -15 }
+      }
+    ]
+  },
+  {
+    "id": "Орден Хрустящих Сухариков",
+    "color": "#E57373",
+    "start_loyalty": 0,
+    "effects": [
+      {
+        "threshold": 30,
+        "unlock": "Звук Крышки"
+      },
+      {
+        "threshold": -30,
+        "event": "кризис_сухариков"
+      }
+    ]
+  }
+]

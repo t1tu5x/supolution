@@ -1,21 +1,26 @@
-# ✅ soup_game.py — с глубокой механикой: ресурсы, фракции, технологии, проигрыш
+# ✅ soup_game.py — редизайн ядра: ресурсы, фракции, взаимосвязи, логика
 
 import json
 import random
+import math
 
 class SoupGame:
     def __init__(self, dlc_enabled=True):
         self.turn = 0
         self.hp = 100
-        self.max_turns = 40
+        self.max_turns = 50
         self.status = "alive"
 
-        # 🎯 Базовые ресурсы: энергия, броня, стройблоки
+        # 🎯 Ресурсы с чёткой функцией и физикой
         self.resources = {
-            "белки": 5,     # Строительство, восстановление HP
-            "жиры": 5,      # Защита от атак
-            "углеводы": 5   # Энергия, скорость восстановления
+            "белки": 5,     # Рост тканей, восстановление HP
+            "жиры": 5,      # Теплоизоляция, защита от урона
+            "углеводы": 5,  # Энергия, расходуется каждый ход
+            "минералы": 5   # Катализаторы для технологий и дипломатии
         }
+
+        self.metabolism_rate = 3  # сколько углеводов нужно в ход для поддержания стабильности
+        self.temp_stability = 0   # показатель перегрева или охлаждения
 
         self.tech = []
         self.structures = []
@@ -28,7 +33,7 @@ class SoupGame:
         self.choices = self.load_json("data/choices.json")
         self.quests = self.load_json("data/quests.json")
 
-        # 🤝 Фракции с активным влиянием
+        # 🤝 Фракции с лояльностью и стратегией
         self.factions = {
             "Сливочные Пельмешки": 0,
             "Горошковое Веселье": 0,
@@ -57,53 +62,55 @@ class SoupGame:
 
         self.turn += 1
 
-        # 💥 Нехватка энергии = потеря HP
-        if self.resources["углеводы"] < 3:
-            self.hp -= 5
-            self.events_log.append("⚡ Энергии мало! Суп теряет силы.")
+        # 📉 Энергозатраты: если углеводов не хватает — штраф
+        if self.resources["углеводы"] < self.metabolism_rate:
+            deficit = self.metabolism_rate - self.resources["углеводы"]
+            self.hp -= deficit * 3
+            self.temp_stability += deficit
+            self.events_log.append(f"⚡ Энергетическое истощение: нехватка углеводов на {deficit} → HP −{deficit * 3}")
+            self.resources["углеводы"] = 0
+        else:
+            self.resources["углеводы"] -= self.metabolism_rate
 
-        # 🛡️ Низкий жир = шанс урона
-        if self.resources["жиры"] < 2 and random.random() < 0.3:
-            self.hp -= 5
-            self.events_log.append("🧈 Жир почти на нуле! Что‑то подгорело.")
+        # 🔥 Нестабильность температуры влияет на жиры и HP
+        if self.temp_stability > 3:
+            damage = self.temp_stability - 2
+            self.hp -= damage
+            self.events_log.append(f"🥵 Перегрев! Потеряно HP −{damage}")
+        elif self.temp_stability < -3:
+            self.hp -= 2
+            self.events_log.append("🥶 Переохлаждение супа: HP −2")
 
-        # 💥 Враждебные фракции могут нанести урон
+        # 📈 Прирост ресурсов зависит от технологий и фракций
+        for res in self.resources:
+            gain = 1
+            if res == "белки" and "Аминогенез" in self.tech:
+                gain += 1
+            if res == "углеводы" and "Ферментация" in self.structures:
+                gain += 1
+            if res == "минералы" and self.factions["Мармеладные Мыслители"] >= 3:
+                gain += 1
+            self.resources[res] += gain
+
+        # 🏛️ Влияние фракций
         for name, rep in self.factions.items():
-            if rep <= -3 and random.random() < 0.4:
+            if rep <= -3 and random.random() < 0.3:
                 self.hp -= 3
-                self.events_log.append(f"⚔️ {name} устроили заговор и высосали часть бульона!")
-
-        # 🎁 Дружественные фракции помогают
-        for name, rep in self.factions.items():
+                self.events_log.append(f"⚔️ {name} атаковали суп! HP −3")
             if rep >= 4 and random.random() < 0.3:
-                res = random.choice(["белки", "жиры", "углеводы"])
-                self.resources[res] += 2
-                self.events_log.append(f"🎉 {name} подарили 2 ед. ресурса: {res}")
+                self.resources[random.choice(list(self.resources))] += 2
+                self.events_log.append(f"🎁 {name} прислали помощь!")
 
-        # 📈 Прирост ресурсов
-        for key in self.resources:
-            прирост = 1
-            if "Ферментатор" in self.structures and key == "углеводы":
-                прирост += 1
-            self.resources[key] = max(0, self.resources[key] + прирост)
-
-        # 🎲 События, квесты, выборы
         if random.random() < 0.4:
             self.trigger_random_event()
 
         self.update_quests()
         self.maybe_trigger_choice()
 
-        # ☠️ Проверка поражения
-        if self.turn >= self.max_turns or self.hp <= 0:
+        if self.hp <= 0 or self.turn >= self.max_turns:
             self.status = "flushed"
 
-        # 🧠 Проверка победы
-        if (
-            all(v >= 5 for v in self.factions.values()) and
-            "Супознание" in self.tech and
-            "Храм Ложки" in self.structures
-        ):
+        if all(v >= 6 for v in self.factions.values()) and "Супознание" in self.tech:
             self.status = "ascended"
 
     def tech_requirements_met(self, upgrade_name):
@@ -131,12 +138,8 @@ class SoupGame:
                 self.factions[faction] += shift
 
         self.tech.append(найден["name"])
-
         if найден.get("win"):
             self.status = "ascended"
-
-        if upgrade_name == "Супознание" and "Томатный апокалипсис" not in self.unlocked_themes:
-            self.unlocked_themes.append("Томатный апокалипсис")
 
         return True
 
@@ -198,7 +201,7 @@ class SoupGame:
                 req = q["stages"][stage]["require"]
                 if all(self.resources.get(k, 0) >= v for k, v in req.get("resources", {}).items()):
                     self.quest_progress[qid] = stage + 1
-                    self.events_log.append(f"🌟 Ура! Квест {q['name']} — этап {stage+1} пройден!")
+                    self.events_log.append(f"🌟 Квест " + q['name'] + f" — этап {stage+1} пройден!")
                     for key, val in q["stages"][stage].get("reward", {}).get("resources", {}).items():
                         self.resources[key] += val
 
@@ -216,40 +219,3 @@ class SoupGame:
             "unlocked_themes": list(self.unlocked_themes),
             "quest_progress": self.quest_progress
         }
-
-    def to_dict(self):
-        return {
-            "turn": self.turn,
-            "hp": self.hp,
-            "status": self.status,
-            "resources": self.resources,
-            "tech": self.tech,
-            "structures": self.structures,
-            "factions": self.factions,
-            "events_log": self.events_log,
-            "resolved_choices": list(self.resolved_choices),
-            "current_choice_id": self.current_choice["id"] if self.current_choice else None,
-            "unlocked_themes": list(self.unlocked_themes),
-            "quest_progress": self.quest_progress
-        }
-
-    def load_state(self, data):
-        self.turn = data["turn"]
-        self.hp = data["hp"]
-        self.status = data["status"]
-        self.resources = data["resources"]
-        self.tech = data["tech"]
-        self.structures = data["structures"]
-        self.factions = data["factions"]
-        self.events_log = data["events_log"]
-        self.resolved_choices = set(data.get("resolved_choices", []))
-        self.unlocked_themes = list(data.get("unlocked_themes", ["Классика"]))
-        self.quest_progress = data.get("quest_progress", {})
-
-        if data.get("current_choice_id"):
-            self.current_choice = next(
-                (c for c in self.choices if c["id"] == data["current_choice_id"]),
-                None
-            )
-        else:
-            self.current_choice = None

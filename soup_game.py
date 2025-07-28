@@ -2,7 +2,6 @@
 
 import json
 import random
-import os
 from datetime import datetime
 
 class SoupGame:
@@ -23,7 +22,7 @@ class SoupGame:
                 self.upgrades = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             self.upgrades = [{
-                "name": "Ошибка загрузки апгрейдов",
+                "name": "Ошибка загрузки",
                 "desc": "Проверь файл data/upgrades.json",
                 "bonus": {"белки": 0}
             }]
@@ -36,29 +35,30 @@ class SoupGame:
         self.hp -= random.randint(1, 5)
 
         for k in self.resources:
-            self.resources[k] = max(0, self.resources[k] + random.randint(1, 3))
+            прирост = random.randint(1, 3)
+            self.resources[k] = max(0, self.resources[k] + прирост)
 
         if self.turn >= self.max_turns or self.hp <= 0:
             self.status = "flushed"
 
     def get_upgrade_choices(self):
-        available = [u for u in self.upgrades if u["name"] not in self.tech]
-        if len(available) == 0:
+        доступные = [u for u in self.upgrades if u["name"] not in self.tech]
+        if not доступные:
             return []
-        return random.sample(available, min(3, len(available)))
+        return random.sample(доступные, min(3, len(доступные)))
 
     def apply_upgrade(self, upgrade_name):
-        found = next((u for u in self.upgrades if u["name"] == upgrade_name), None)
-        if not found:
+        найденный = next((u for u in self.upgrades if u["name"] == upgrade_name), None)
+        if not найденный:
             return False
 
-        for k, v in found.get("bonus", {}).items():
+        for k, v in найденный.get("bonus", {}).items():
             if k in self.resources:
                 self.resources[k] += v
 
-        self.tech.append(found["name"])
+        self.tech.append(найденный["name"])
 
-        if found.get("win"):
+        if найденный.get("win"):
             self.status = "ascended"
 
         return True

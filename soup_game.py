@@ -1,150 +1,117 @@
+# soup_game.py — с жертвами и синергией технологий
+
 import json
-import random
 
 class SoupGame:
     def __init__(self):
-        self.turn = 0
+        self.turn = 1
         self.hp = 100
-        self.max_turns = 50
-        self.status = "alive"
-
-        self.resources = {
-            "белки": 5,
-            "жиры": 5,
-            "углеводы": 5,
-            "минералы": 5,
-            "жар": 5,
-            "вода": 5
-        }
-
-        self.tech = []
+        self.max_turns = 100
+        self.resources = {"вода": 100, "жар": 50, "жир": 75, "нутриенты": 120, "белки": 0, "углеводы": 0}
+        self.factions = {"овощи": 0, "специи": 0, "мясо": 0, "Грибной Ковен": 0, "Картофельный Фронт": 0, "Орден Бульона": 0, "Слизистая Демократия": 0}
         self.structures = []
-        self.events_log = []
+        self.tech = []
         self.quest_progress = {}
-        self.flags = {}
-        self.factions = {
-            "Сливочные Пельмешки": 0,
-            "Горошковое Веселье": 0,
-            "Орден Хрустящих Сухариков": 0
-        }
-
-        self.upgrades = self.load_json("data/upgrades.json")
-        self.tech_tree = self.load_json("data/tech_tree.json")
-        self.choices = self.load_json("data/choices.json")
-        self.quests = self.load_json("data/quests.json")
+        self.events_log = []
         self.current_choice = None
-        self.resolved_choices = set()
 
-    def load_json(self, path):
+        with open("data/tech_tree.json", "r", encoding="utf-8") as f:
+            self.tech_tree = json.load(f)
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
+            with open("data/tech_synergies.json", "r", encoding="utf-8") as f:
+                self.tech_synergies = json.load(f)
         except:
-            return []
+            self.tech_synergies = []
+        try:
+            with open("data/upgrades.json", "r", encoding="utf-8") as f:
+                self.upgrades_data = {u["name"]: u for u in json.load(f)}
+        except:
+            self.upgrades_data = {}
 
     def get_state(self):
         return {
             "turn": self.turn,
             "hp": self.hp,
-            "status": self.status,
             "resources": self.resources,
-            "tech": self.tech,
-            "structures": self.structures,
-            "events_log": self.events_log[-10:],
             "factions": self.factions,
+            "structures": self.structures,
+            "tech": self.tech,
             "quest_progress": self.quest_progress,
+            "events_log": self.events_log,
             "current_choice": self.current_choice
         }
 
     def to_dict(self):
-        return self.__dict__
+        return self.get_state()
 
     def load_state(self, data):
         self.__dict__.update(data)
 
-    def next_turn(self):
-        self.turn += 1
-        self.update_quests()
-
     def get_upgrade_choices(self):
-        return random.sample(
-            [u for u in self.upgrades if u["name"] not in self.tech],
-            min(3, len(self.upgrades))
-        )
+        available = []
+        for tech, deps in self.tech_tree.items():
+            if tech not in self.tech and all(d in self.tech for d in deps):
+                entry = {"name": tech, "desc": self.upgrades_data.get(tech, {}).get("desc", "")}
+                entry["cost"] = self.upgrades_data.get(tech, {}).get("cost", [])
+                available.append(entry)
+        return available
 
-    def apply_upgrade(self, name):
-        tech = next((u for u in self.upgrades if u["name"] == name), None)
-        if not tech:
-            return
-        self.tech.append(name)
-        for k, v in tech.get("bonus", {}).items():
-            if k in self.resources:
-                self.resources[k] += v
-        for f, d in tech.get("factions", {}).items():
-            if f in self.factions:
-                self.factions[f] += d
-        if "structure" in tech:
-            self.structures.append(tech["structure"])
-        self.events_log.append(f"🔬 Исследована технология: {name}")
-
-    def trigger_tech_effects(self, name):
-        if name == "Сердце Супознания":
-            self.flags["awakened"] = True
-            self.events_log.append("✨ Суп достиг сознания!")
-
-    def choice_impact(self, cid, answer):
-        if cid == "pea_fight" and answer == "no":
-            self.factions["Горошковое Веселье"] -= 5
-            self.events_log.append("⚠️ Горошек обиделся.")
-        if cid == "lid_melody" and answer == "yes":
-            self.flags["lid_opened"] = True
-            self.events_log.append("🎵 Крышка открылась от звука!")
-
-    def resolve_choice(self, answer):
-        if not self.current_choice:
-            return
-        effects = self.current_choice.get(answer, {})
-        for r, v in effects.get("resources", {}).items():
-            if r in self.resources:
-                self.resources[r] += v
-        for f, d in effects.get("factions", {}).items():
-            if f in self.factions:
-                self.factions[f] += d
-        self.resolved_choices.add(self.current_choice["id"])
-        self.current_choice = None
-
-    def update_quests(self):
-        for quest in self.quests:
-            qid = quest["id"]
-            stage = self.quest_progress.get(qid, 0)
-            if stage >= len(quest["stages"]):
-                continue
-            req = quest["stages"][stage].get("require", {})
-            if self._requirements_met(req):
-                self.quest_progress[qid] = stage + 1
-                self._apply_reward(quest["stages"][stage].get("reward", {}))
-                self.events_log.append(f"📖 Квест '{quest['name']}': этап {stage + 1} завершён!")
-
-    def _requirements_met(self, req):
-        for r, v in req.items():
-            if r == "tech":
-                if v not in self.tech:
+    def can_afford(self, tech_name):
+        data = self.upgrades_data.get(tech_name, {})
+        for c in data.get("cost", []):
+            if c["type"] in self.resources:
+                if self.resources.get(c["type"], 0) < c["amount"]:
                     return False
-            elif r in self.resources:
-                if self.resources[r] < v:
+            elif c["type"] == "faction":
+                if self.factions.get(c["target"], 0) < abs(c["amount"]):
                     return False
         return True
 
-    def _apply_reward(self, reward):
-        for r, v in reward.get("resources", {}).items():
-            if r in self.resources:
-                self.resources[r] += v
-        for f, d in reward.get("factions", {}).items():
-            if f == "Все":
-                for fac in self.factions:
-                    self.factions[fac] += d
-            elif f in self.factions:
-                self.factions[f] += d
-        if "tech" in reward and reward["tech"] not in self.tech:
-            self.tech.append(reward["tech"])
-            self.events_log.append(f"🧠 Открыта технология: {reward['tech']}")
+    def apply_upgrade_cost(self, tech_name):
+        data = self.upgrades_data.get(tech_name, {})
+        for c in data.get("cost", []):
+            if c["type"] in self.resources:
+                self.resources[c["type"]] -= c["amount"]
+            elif c["type"] == "faction":
+                self.factions[c["target"]] += c["amount"]
+        self.events_log.append(f"🎯 Потрачено на {tech_name}")
+
+    def apply_upgrade(self, tech_name):
+        if not self.can_afford(tech_name):
+            self.events_log.append(f"❌ Недостаточно ресурсов для {tech_name}")
+            return
+        self.apply_upgrade_cost(tech_name)
+        self.tech.append(tech_name)
+        self.events_log.append(f"🔬 Изучена технология: {tech_name}")
+
+        # применить бонус
+        data = self.upgrades_data.get(tech_name, {})
+        for k, v in data.get("bonus", {}).items():
+            self.resources[k] += v
+        for f, v in data.get("factions", {}).items():
+            self.factions[f] += v
+        if data.get("win"):
+            self.events_log.append("🏆 Победа: суп достиг осознания!")
+
+    def trigger_tech_effects(self, tech_name):
+        pass
+
+    def check_synergies(self):
+        active = set(self.tech)
+        for entry in self.tech_synergies:
+            combo = set(entry["combo"])
+            if combo.issubset(active):
+                effect = entry["effect"]
+                label = effect["name"]
+                self.events_log.append(f"🧪 Активирована синергия: {label}")
+                for key, val in effect.get("bonus", {}).items():
+                    if key in self.resources:
+                        self.resources[key] += int(self.resources[key] * val)
+                for fac, delta in effect.get("factions", {}).items():
+                    if fac in self.factions:
+                        self.factions[fac] += delta
+
+    def next_turn(self):
+        self.turn += 1
+        if self.turn >= self.max_turns:
+            self.events_log.append("🏁 Игра завершена по времени.")

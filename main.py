@@ -1,105 +1,128 @@
-# main.py с квестами и прогрессбаром
+import json
 
-import streamlit as st
-from soup_game import SoupGame
+class SoupGame:
+    def __init__(self):
+        self.turn = 1
+        self.hp = 100
+        self.max_turns = 100
+        self.resources = {"вода": 100, "жар": 50, "жир": 75, "нутриенты": 120, "белки": 0, "углеводы": 0}
+        self.resource_max = {"вода": 1000, "жар": 1000, "жир": 1000, "нутриенты": 1000, "белки": 1000, "углеводы": 1000}
+        self.factions = {"овощи": 0, "специи": 0, "мясо": 0, "Грибной Ковен": 0, "Картофельный Фронт": 0, "Орден Бульона": 0, "Слизистая Демократия": 0}
+        self.structures = []
+        self.tech = []
+        self.quest_progress = {}
+        self.events_log = []
+        self.current_choice = None
 
-st.set_page_config(page_title="🥣 Суполюция", page_icon="🥄", layout="centered")
+        with open("data/tech_tree.json", "r", encoding="utf-8") as f:
+            self.tech_tree = json.load(f)
+        try:
+            with open("data/tech_synergies.json", "r", encoding="utf-8") as f:
+                self.tech_synergies = json.load(f)
+        except:
+            self.tech_synergies = []
+        try:
+            with open("data/upgrades.json", "r", encoding="utf-8") as f:
+                self.upgrades_data = {u["name"]: u for u in json.load(f)}
+        except:
+            self.upgrades_data = {}
 
-if "game_data" in st.session_state:
-    game = SoupGame()
-    game.load_state(st.session_state["game_data"])
-else:
-    game = SoupGame()
+    def get_state(self):
+        return {
+            "turn": self.turn,
+            "hp": self.hp,
+            "resources": self.resources,
+            "factions": self.factions,
+            "structures": self.structures,
+            "tech": self.tech,
+            "quest_progress": self.quest_progress,
+            "events_log": self.events_log,
+            "current_choice": self.current_choice
+        }
 
-state = game.get_state()
-st.session_state.game_data = game.to_dict()
+    def to_dict(self):
+        return self.get_state()
 
-st.title("🥣 Суполюция")
-st.markdown("Разумный суп. Микроцивилизация. Научный бой за выживание.")
+    def load_state(self, data):
+        self.__dict__.update(data)
 
-# 💬 Ресурсы
-col1, col2 = st.columns(2)
-with col1:
-    st.markdown(f"🧪 **Ход:** `{state['turn']}` / `{game.max_turns}`")
-    st.markdown(f"❤️ **Здоровье:** `{state['hp']}`")
-with col2:
-    for k, v in state["resources"].items():
-        st.markdown(f"- {k.capitalize()}: `{v}`")
+    def add_resource(self, key, amount):
+        max_cap = self.resource_max.get(key, 999999)
+        current = self.resources.get(key, 0)
+        if current < max_cap:
+            self.resources[key] = min(current + amount, max_cap)
+        else:
+            overflow = current + amount - max_cap
+            gain = int(amount * 0.5 ** (overflow / 100))
+            self.resources[key] += gain
+            self.events_log.append(f"⚠️ Потери при избытке {key}: {amount - gain}")
 
-# 🔥 Квесты
-st.markdown("### 📖 Квесты:")
-if state["quest_progress"]:
-    for qid, stage in state["quest_progress"].items():
-        st.markdown(f"- 📘 `{qid}` — этап {stage}")
-        pct = min(100, (stage / 3) * 100)
-        st.progress(pct, text=f"{int(pct)}% завершено")
-else:
-    st.markdown("Нет активных квестов")
+    def get_upgrade_choices(self):
+        available = []
+        for tech, deps in self.tech_tree.items():
+            if tech not in self.tech and all(d in self.tech for d in deps):
+                entry = {"name": tech, "desc": self.upgrades_data.get(tech, {}).get("desc", "")}
+                entry["cost"] = self.upgrades_data.get(tech, {}).get("cost", [])
+                available.append(entry)
+        return available
 
-# 🧪 Технологии
-st.markdown("### 🔬 Исследования:")
-choices = game.get_upgrade_choices()
-if not choices:
-    st.info("Все технологии изучены.")
-    if st.button("➡ Следующий ход"):
-        game.next_turn()
-        st.session_state.game_data = game.to_dict()
-        st.rerun()
-else:
-    for tech in choices:
-        with st.expander(f"🔹 {tech['name']}"):
-            st.markdown(tech["desc"])
-            deps = game.tech_tree.get(tech["name"], [])
-            if deps:
-                st.markdown(f"🔗 Требует: {', '.join(deps)}")
-            st.markdown("🧠 Возможные последствия: фракции, квесты, сюжет")
-            if st.button(f"🔬 Изучить: {tech['name']}"):
-                game.apply_upgrade(tech["name"])
-                game.trigger_tech_effects(tech["name"])
-                game.next_turn()
-                st.session_state.game_data = game.to_dict()
-                st.rerun()
+    def can_afford(self, tech_name):
+        data = self.upgrades_data.get(tech_name, {})
+        for c in data.get("cost", []):
+            if c["type"] in self.resources:
+                if self.resources.get(c["type"], 0) < c["amount"]:
+                    return False
+            elif c["type"] == "faction":
+                if self.factions.get(c["target"], 0) < abs(c["amount"]):
+                    return False
+        return True
 
-# ⚖️ Выборы
-if state.get("current_choice"):
-    ch = state["current_choice"]
-    st.markdown(f"### ❓ {ch['text']}")
-    cola, colb = st.columns(2)
-    if cola.button("✅ Да"):
-        game.resolve_choice("yes")
-        game.choice_impact(ch["id"], "yes")
-        game.next_turn()
-        st.session_state.game_data = game.to_dict()
-        st.rerun()
-    if colb.button("❌ Нет"):
-        game.resolve_choice("no")
-        game.choice_impact(ch["id"], "no")
-        game.next_turn()
-        st.session_state.game_data = game.to_dict()
-        st.rerun()
+    def apply_upgrade_cost(self, tech_name):
+        data = self.upgrades_data.get(tech_name, {})
+        for c in data.get("cost", []):
+            if c["type"] in self.resources:
+                self.resources[c["type"]] -= c["amount"]
+            elif c["type"] == "faction":
+                self.factions[c["target"]] += c["amount"]
+        self.events_log.append(f"🎯 Потрачено на {tech_name}")
 
-# 🏛️ Фракции
-st.markdown("### 🏛️ Фракции:")
-for name, rep in state["factions"].items():
-    status = "👑 альянс" if rep >= 6 else "🟢 союз" if rep >= 4 else "🔴 враг" if rep <= -4 else "⚪ нейтрал"
-    st.markdown(f"{status} **{name}** — `{rep}`")
+    def apply_upgrade(self, tech_name):
+        if not self.can_afford(tech_name):
+            self.events_log.append(f"❌ Недостаточно ресурсов для {tech_name}")
+            return
+        self.apply_upgrade_cost(tech_name)
+        self.tech.append(tech_name)
+        self.events_log.append(f"🔬 Изучена технология: {tech_name}")
 
-# 📜 События
-st.markdown("### 📜 Хроника:")
-for log in reversed(state["events_log"]):
-    icon = "🔬" if "техн" in log.lower() else "⚔️" if "атак" in log.lower() else "🎁" if "помощ" in log.lower() else "📍"
-    st.markdown(f"- {icon} {log}")
+        data = self.upgrades_data.get(tech_name, {})
+        for k, v in data.get("bonus", {}).items():
+            self.add_resource(k, v)
+        for f, v in data.get("factions", {}).items():
+            self.factions[f] += v
+        if tech_name == "Pantry Cache":
+            self.resource_max["нутриенты"] += 150
+            self.events_log.append("📦 Увеличен лимит хранения нутриентов на +150")
+        if data.get("win"):
+            self.events_log.append("🏆 Победа: суп достиг осознания!")
 
-# 🏗️ Постройки
-with st.expander("🏗️ Постройки"):
-    for s in state["structures"]:
-        st.markdown(f"- 🧱 {s}")
-    if not state["structures"]:
-        st.markdown("_Ничего не построено._")
+    def trigger_tech_effects(self, tech_name):
+        pass
 
-# 📘 Изученные технологии
-with st.expander("📘 Изученные технологии"):
-    for t in state["tech"]:
-        st.markdown(f"- {t}")
-    if not state["tech"]:
-        st.markdown("_Пока пусто._")
+    def check_synergies(self):
+        active = set(self.tech)
+        for entry in self.tech_synergies:
+            combo = set(entry["combo"])
+            if combo.issubset(active):
+                effect = entry["effect"]
+                label = effect["name"]
+                self.events_log.append(f"🧪 Активирована синергия: {label}")
+                for key, val in effect.get("bonus", {}).items():
+                    self.add_resource(key, int(self.resources[key] * val))
+                for fac, delta in effect.get("factions", {}).items():
+                    if fac in self.factions:
+                        self.factions[fac] += delta
+
+    def next_turn(self):
+        self.turn += 1
+        if self.turn >= self.max_turns:
+            self.events_log.append("🏁 Игра завершена по времени.")

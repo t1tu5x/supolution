@@ -3,17 +3,8 @@
 import streamlit as st
 from soup_game import SoupGame
 
-def play_sound(url):
-    st.markdown(f"""
-        <audio autoplay>
-            <source src="{url}" type="audio/mp3">
-        </audio>
-    """, unsafe_allow_html=True)
-
-# ⬛ Настройки страницы
 st.set_page_config(page_title="СУПОЛЮЦИЯ", page_icon="🥣", layout="centered")
 
-# 🧼 Кастомный фон и стили
 def apply_custom_style():
     st.markdown("""
         <style>
@@ -31,20 +22,24 @@ def apply_custom_style():
         </style>
     """, unsafe_allow_html=True)
 
+def play_sound(url):
+    st.markdown(f"""
+        <audio autoplay>
+            <source src="{url}" type="audio/mp3">
+        </audio>
+    """, unsafe_allow_html=True)
+
 apply_custom_style()
 
-# 🧠 Инициализация игры
 if "game" not in st.session_state:
     st.session_state.game = SoupGame()
 
 game = st.session_state.game
 state = game.get_state()
 
-# 🥄 Заголовок
 st.title("🥣 СУПОЛЮЦИЯ")
 st.markdown("**Ты — суп. Разумный. Не дай себя вылить.**")
 
-# 🧾 Всплывающее супное интро
 if state["turn"] == 0 and not state["tech"]:
     st.markdown("""
         <div style='padding:1em; background:#fff5db; border-left: 5px solid orange; border-radius: 8px;'>
@@ -54,7 +49,6 @@ if state["turn"] == 0 and not state["tech"]:
         </div>
     """, unsafe_allow_html=True)
 
-# 📊 Основная информация
 col1, col2 = st.columns(2)
 with col1:
     st.markdown(f"🌀 **Ход:** `{state['turn']}` / `{game.max_turns}`")
@@ -65,36 +59,41 @@ with col2:
     for k, v in state["resources"].items():
         st.markdown(f"- {k}: `{v}`")
 
-# ✅ Победа
 if state["status"] == "ascended":
+    play_sound("https://cdn.pixabay.com/audio/2022/10/31/audio_8c8d2f5f20.mp3")
     st.balloons()
     st.success("🎉 Суп стал существом высшего порядка. Поздравляем с супознанием!")
     st.button("Играть снова", on_click=lambda: st.session_state.clear())
     st.stop()
 
-# 💀 Поражение
 if state["status"] == "flushed":
+    play_sound("https://cdn.pixabay.com/audio/2023/04/28/audio_13fa01aa09.mp3")
     st.error("🚽 О нет! Кто-то слил тебя в унитаз... Суп проиграл.")
     st.button("Попробовать снова", on_click=lambda: st.session_state.clear())
     st.stop()
 
 st.divider()
-
-# 🧾 Супные хроники
 st.markdown("### 📜 Супные хроники:")
-if state["events_log"]:
-    for e in reversed(state["events_log"]):
-        st.markdown(f"- {e}")
-else:
-    st.markdown("_Пока всё тихо в кастрюле..._")
+for e in reversed(state["events_log"]):
+    st.markdown(f"- {e}")
 
-# 🏛️ Репутация фракций
 st.markdown("### 🏛️ Фракции супа:")
 for name, value in state["factions"].items():
     bar = "🟩" * max(0, value) + "🟥" * max(0, -value)
     st.markdown(f"**{name}**: `{value}` {bar}")
 
-# 🧪 Технологии (апгрейды)
+if state.get("current_choice"):
+    choice = state["current_choice"]
+    st.markdown("### ⚖️ Судьбоносный выбор!")
+    st.markdown(f"**{choice['text']}**")
+    col_a, col_b = st.columns(2)
+    if col_a.button("✅ Согласен"):
+        game.resolve_choice("yes")
+        st.rerun()
+    if col_b.button("❌ Отказаться"):
+        game.resolve_choice("no")
+        st.rerun()
+
 st.markdown("### 🔬 Новые технологии:")
 choices = game.get_upgrade_choices()
 
@@ -110,23 +109,17 @@ selected_upgrade = next(u for u in choices if u["name"] == selected_name)
 st.markdown(f"🔍 **Описание:** {selected_upgrade['desc']}")
 
 if st.button("📈 Применить и перейти к следующему ходу"):
+    play_sound("https://cdn.pixabay.com/audio/2022/03/15/audio_3fd16212d1.mp3")
     game.apply_upgrade(selected_name)
     game.next_turn()
     st.rerun()
 
-# 🧬 Доп. инфо
 st.divider()
 with st.expander("📊 Статистика цивилизации"):
     st.markdown("**🧱 Постройки:**")
-    if state["structures"]:
-        for s in state["structures"]:
-            st.markdown(f"- 🏗️ {s}")
-    else:
-        st.markdown("_Ещё ничего не построено._")
+    for s in state["structures"]:
+        st.markdown(f"- 🏗️ {s}") if state["structures"] else st.markdown("_Ещё ничего не построено._")
 
     st.markdown("**📘 Изученные технологии:**")
-    if state["tech"]:
-        for t in state["tech"]:
-            st.markdown(f"- {t}")
-    else:
-        st.markdown("_Суп ещё не познал ни одной истины._")
+    for t in state["tech"]:
+        st.markdown(f"- {t}") if state["tech"] else st.markdown("_Суп ещё не познал ни одной истины._")

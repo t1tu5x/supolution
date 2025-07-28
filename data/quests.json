@@ -1,33 +1,91 @@
 [
   {
-    "id": "build_shrine",
-    "name": "Храм Ложки",
+    "id": "dumpling_mist",
+    "name": "Пельмень в тумане",
     "stages": [
       {
-        "require": { "resources": { "белки": 10, "жиры": 10 } },
-        "reward": { "resources": { "углеводы": 5 } }
+        "require": { "вода": 30 },
+        "reward": { "factions": { "Сливочные Пельмешки": 5 }, "resources": { "минералы": 10 } }
       },
       {
-        "require": { "resources": { "углеводы": 15 } },
-        "reward": { "resources": { "белки": 5 } }
+        "require": { "углеводы": 40 },
+        "reward": { "factions": { "Сливочные Пельмешки": 10 }, "tech": "Пельмень Вдохновения" }
       },
       {
-        "require": { "resources": { "белки": 20 } },
-        "reward": { "resources": { "жиры": 10 } }
+        "require": { "жиры": 20 },
+        "reward": { "factions": { "Горошковое Веселье": -5 } }
       }
     ]
   },
   {
-    "id": "contact_peas",
-    "name": "Контакт с Горошковой Армией",
+    "id": "silent_lid",
+    "name": "Крышка молчит",
     "stages": [
       {
-        "require": { "resources": { "углеводы": 12 } },
-        "reward": { "resources": { "жиры": 2 } }
+        "require": { "жар": 50 },
+        "reward": { "resources": { "углеводы": 20 } }
       },
       {
-        "require": { "resources": { "жиры": 10 } },
-        "reward": { "resources": { "белки": 3 } }
+        "require": { "tech": "Музыкальность" },
+        "reward": { "factions": { "Орден Хрустящих Сухариков": 10 } }
+      },
+      {
+        "require": { "минералы": 30 },
+        "reward": { "tech": "Звук Крышки" }
+      }
+    ]
+  },
+  {
+    "id": "pea_chain",
+    "name": "Бунт горошка",
+    "stages": [
+      {
+        "require": { "белки": 20 },
+        "reward": { "resources": { "углеводы": 15 } }
+      },
+      {
+        "require": { "tech": "Эмпатия" },
+        "reward": { "factions": { "Горошковое Веселье": 15 } }
+      },
+      {
+        "require": { "углеводы": 50 },
+        "reward": { "tech": "Гармония Волокон" }
+      }
+    ]
+  },
+  {
+    "id": "fridge_whisper",
+    "name": "Шёпот в холодильнике",
+    "stages": [
+      {
+        "require": { "вода": 60 },
+        "reward": { "resources": { "жиры": 10 } }
+      },
+      {
+        "require": { "tech": "Решимость" },
+        "reward": { "factions": { "Все": 5 } }
+      },
+      {
+        "require": { "жар": 60 },
+        "reward": { "tech": "Холодное Сознание" }
+      }
+    ]
+  },
+  {
+    "id": "soup_transcend",
+    "name": "Варка Трансцендентности",
+    "stages": [
+      {
+        "require": { "resources": { "минералы": 40, "белки": 20 } },
+        "reward": { "factions": { "Все": 10 } }
+      },
+      {
+        "require": { "resources": { "углеводы": 60 } },
+        "reward": { "resources": { "вода": 30 } }
+      },
+      {
+        "require": { "resources": { "вода": 100 } },
+        "reward": { "tech": "Сердце Супознания" }
       }
     ]
   }

@@ -1,5 +1,4 @@
-
-# ✅ soup_game.py — с поддержкой DLC-фракций, тем и сохранения
+ ✅ soup_game.py — с поддержкой DLC-фракций, тем, сохранения и квестов
 
 import json
 import random
@@ -19,6 +18,8 @@ class SoupGame:
         self.upgrades = self.load_json("data/upgrades.json")
         self.events = self.load_json("data/events.json")
         self.choices = self.load_json("data/choices.json")
+        self.quests = self.load_json("data/quests.json")
+        self.quest_progress = {}
 
         self.factions = {
             "Грибной Ковен": 0,
@@ -31,7 +32,6 @@ class SoupGame:
         self.resolved_choices = set()
         self.unlocked_themes = ["Классика"]
 
-        # DLC
         if dlc_enabled:
             for dlc in self.load_json("data/factions_dlc.json"):
                 self.factions[dlc["name"]] = dlc.get("starting_reputation", 0)
@@ -58,6 +58,8 @@ class SoupGame:
 
         if random.random() < 0.4:
             self.trigger_random_event()
+
+        self.update_quests()
 
         if self.turn >= self.max_turns or self.hp <= 0:
             self.status = "flushed"
@@ -151,6 +153,18 @@ class SoupGame:
         if self.hp <= 0:
             self.status = "flushed"
 
+    def update_quests(self):
+        for q in self.quests:
+            qid = q["id"]
+            stage = self.quest_progress.get(qid, 0)
+            if stage < len(q["stages"]):
+                req = q["stages"][stage]["require"]
+                if all(self.resources.get(k, 0) >= v for k, v in req.get("resources", {}).items()):
+                    self.quest_progress[qid] = stage + 1
+                    self.events_log.append(f"🧭 Квест продвинулся: {q['name']} — этап {stage+1}")
+                    for key, val in q["stages"][stage].get("reward", {}).get("resources", {}).items():
+                        self.resources[key] += val
+
     def get_state(self):
         return {
             "turn": self.turn,
@@ -162,7 +176,8 @@ class SoupGame:
             "structures": list(self.structures),
             "events_log": list(self.events_log[-5:]),
             "current_choice": self.current_choice,
-            "unlocked_themes": list(self.unlocked_themes)
+            "unlocked_themes": list(self.unlocked_themes),
+            "quest_progress": self.quest_progress
         }
 
     def to_dict(self):
@@ -177,7 +192,8 @@ class SoupGame:
             "events_log": self.events_log,
             "resolved_choices": list(self.resolved_choices),
             "current_choice_id": self.current_choice["id"] if self.current_choice else None,
-            "unlocked_themes": list(self.unlocked_themes)
+            "unlocked_themes": list(self.unlocked_themes),
+            "quest_progress": self.quest_progress
         }
 
     def load_state(self, data):
@@ -191,6 +207,7 @@ class SoupGame:
         self.events_log = data["events_log"]
         self.resolved_choices = set(data.get("resolved_choices", []))
         self.unlocked_themes = list(data.get("unlocked_themes", ["Классика"]))
+        self.quest_progress = data.get("quest_progress", {})
 
         if data.get("current_choice_id"):
             self.current_choice = next(

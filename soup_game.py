@@ -1,4 +1,4 @@
-# ✅ soup_game.py — для детей: с мультяшными фракциями, квестами и наукой-сказкой
+# ✅ soup_game.py — с глубокой механикой: ресурсы, фракции, технологии, проигрыш
 
 import json
 import random
@@ -10,18 +10,25 @@ class SoupGame:
         self.max_turns = 40
         self.status = "alive"
 
-        self.resources = {"белки": 5, "жиры": 5, "углеводы": 5}
+        # 🎯 Базовые ресурсы: энергия, броня, стройблоки
+        self.resources = {
+            "белки": 5,     # Строительство, восстановление HP
+            "жиры": 5,      # Защита от атак
+            "углеводы": 5   # Энергия, скорость восстановления
+        }
+
         self.tech = []
         self.structures = []
         self.events_log = []
+        self.quest_progress = {}
 
         self.upgrades = self.load_json("data/upgrades.json")
         self.tech_tree = self.load_json("data/tech_tree.json")
         self.events = self.load_json("data/events.json")
         self.choices = self.load_json("data/choices.json")
         self.quests = self.load_json("data/quests.json")
-        self.quest_progress = {}
 
+        # 🤝 Фракции с активным влиянием
         self.factions = {
             "Сливочные Пельмешки": 0,
             "Горошковое Веселье": 0,
@@ -49,22 +56,49 @@ class SoupGame:
             return
 
         self.turn += 1
-        self.hp -= random.randint(1, 3)
 
+        # 💥 Нехватка энергии = потеря HP
+        if self.resources["углеводы"] < 3:
+            self.hp -= 5
+            self.events_log.append("⚡ Энергии мало! Суп теряет силы.")
+
+        # 🛡️ Низкий жир = шанс урона
+        if self.resources["жиры"] < 2 and random.random() < 0.3:
+            self.hp -= 5
+            self.events_log.append("🧈 Жир почти на нуле! Что‑то подгорело.")
+
+        # 💥 Враждебные фракции могут нанести урон
+        for name, rep in self.factions.items():
+            if rep <= -3 and random.random() < 0.4:
+                self.hp -= 3
+                self.events_log.append(f"⚔️ {name} устроили заговор и высосали часть бульона!")
+
+        # 🎁 Дружественные фракции помогают
+        for name, rep in self.factions.items():
+            if rep >= 4 and random.random() < 0.3:
+                res = random.choice(["белки", "жиры", "углеводы"])
+                self.resources[res] += 2
+                self.events_log.append(f"🎉 {name} подарили 2 ед. ресурса: {res}")
+
+        # 📈 Прирост ресурсов
         for key in self.resources:
-            прирост = random.randint(0, 2)
-            if "Ферментатор" in self.structures:
+            прирост = 1
+            if "Ферментатор" in self.structures and key == "углеводы":
                 прирост += 1
             self.resources[key] = max(0, self.resources[key] + прирост)
 
-        if random.random() < 0.5:
+        # 🎲 События, квесты, выборы
+        if random.random() < 0.4:
             self.trigger_random_event()
 
         self.update_quests()
+        self.maybe_trigger_choice()
 
+        # ☠️ Проверка поражения
         if self.turn >= self.max_turns or self.hp <= 0:
             self.status = "flushed"
 
+        # 🧠 Проверка победы
         if (
             all(v >= 5 for v in self.factions.values()) and
             "Супознание" in self.tech and
@@ -72,15 +106,13 @@ class SoupGame:
         ):
             self.status = "ascended"
 
-        self.maybe_trigger_choice()
+    def tech_requirements_met(self, upgrade_name):
+        required = self.tech_tree.get(upgrade_name, [])
+        return all(t in self.tech for t in required)
 
     def get_upgrade_choices(self):
         доступные = [u for u in self.upgrades if u["name"] not in self.tech and self.tech_requirements_met(u["name"])]
         return random.sample(доступные, min(3, len(доступные)))
-
-    def tech_requirements_met(self, upgrade_name):
-        required = self.tech_tree.get(upgrade_name, [])
-        return all(t in self.tech for t in required)
 
     def apply_upgrade(self, upgrade_name):
         найден = next((u for u in self.upgrades if u["name"] == upgrade_name), None)
